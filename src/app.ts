@@ -6,10 +6,8 @@ import cookieParser from "cookie-parser";
 import routes from "./routes/index.js";
 
 const corsOptions = {
-  origin: ["http://localhost:3000", "https://eye-center-web.vercel.app"],
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true, // for cookies
+  origin: true,
+  credentials: true,
 };
 
 const app = express();
