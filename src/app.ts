@@ -5,13 +5,17 @@ import morgan from "morgan";
 import cookieParser from "cookie-parser";
 import routes from "./routes/index.js";
 
+const corsOptions = {
+  origin: ["http://localhost:3000", "https://eye-center-web.vercel.app"],
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true, // for cookies
+};
+
 const app = express();
 
 app.use(helmet());
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || "http://localhost:3000",
-  credentials: true,
-}));
+app.use(cors(corsOptions));
 app.use(morgan("dev"));
 app.use(express.json());
 app.use(cookieParser());
