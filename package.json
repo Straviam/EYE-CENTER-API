@@ -5,7 +5,6 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
     "start": "node dist/index.js",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
@@ -16,7 +15,7 @@
     "db:push": "prisma db push",
     "db:seed": "tsx src/db/seed.ts",
     "db:studio": "prisma studio",
-    "postinstall": "prisma generate"
+    "build": "prisma generate && tsc"
   },
   "dependencies": {
     "@prisma/client": "^7.8.0",
@@ -48,8 +47,8 @@
     "onlyBuiltDependencies": [
       "@biomejs/biome",
       "@prisma/client",
-    "esbuild",
-    "prisma"
+      "esbuild",
+      "prisma"
     ]
   }
 }

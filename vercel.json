@@ -1,6 +1,7 @@
 {
-  "buildCommand": "npx prisma generate && npx tsc",
-  "outputDirectory": "dist",
   "installCommand": "pnpm install",
-  "framework": null
+  "buildCommand": "prisma generate",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/api/index" }
+  ]
 }
