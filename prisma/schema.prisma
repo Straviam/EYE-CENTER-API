@@ -1,0 +1,406 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Auth & Users ────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  RECEPTIONIST
+  DOCTOR
+  MANAGEMENT
+  OPERATOR
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  name         String
+  role         Role
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  doctor       Doctor?
+  roomEntries  RoomEntry[]
+  operatedRooms Room[]
+
+  @@map("users")
+}
+
+// ─── Patients ────────────────────────────────────────────────
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+model Patient {
+  id               String    @id @default(uuid())
+  mrNumber         String    @unique @map("mr_number")
+  name             String
+  phone            String
+  whatsappPhone    String?   @map("whatsapp_phone")
+  email            String?
+  dateOfBirth      DateTime  @map("date_of_birth")
+  gender           Gender
+  cnic             String?
+
+  // Persistent medical history (entered once, carried across visits)
+  allergies        String?
+  hypertension     Boolean   @default(false)
+  diabetes         Boolean   @default(false)
+  cad              Boolean   @default(false) // coronary artery disease
+  copd             Boolean   @default(false) // asthma/bronchitis
+  otherConditions  String?   @map("other_conditions")
+  ocularTrauma     Boolean   @default(false) @map("ocular_trauma")
+  ocularSurgery    String?   @map("ocular_surgery")
+  familyEyeHistory String?   @map("family_eye_history")
+  currentMeds      String?   @map("current_meds")
+  referredBy       String?   @map("referred_by")
+
+  registrationSource String? @map("registration_source") // "website", "phone", "walk-in"
+  registrationToken  String? @unique @map("registration_token")
+
+  visits           Visit[]
+  appointments     Appointment[]
+  invoices         Invoice[]
+
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  @@map("patients")
+}
+
+// ─── Doctors ─────────────────────────────────────────────────
+
+model Doctor {
+  id             String          @id @default(uuid())
+  userId         String?         @unique @map("user_id")
+  name           String
+  specialization String
+
+  user             User?              @relation(fields: [userId], references: [id])
+  schedule         DoctorSchedule[]
+  visits           Visit[]
+  appointments     Appointment[]
+
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@map("doctors")
+}
+
+model DoctorSchedule {
+  id                   String @id @default(uuid())
+  doctorId             String @map("doctor_id")
+  dayOfWeek            Int    @map("day_of_week") // 0=Sun, 6=Sat
+  startTime            String @map("start_time") // "09:00"
+  endTime              String @map("end_time") // "17:00"
+  avgConsultationMins  Int    @default(15) @map("avg_consultation_mins")
+
+  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@unique([doctorId, dayOfWeek])
+  @@map("doctor_schedules")
+}
+
+// ─── Rooms ───────────────────────────────────────────────────
+
+enum RoomType {
+  DILUTION
+  RETINA
+  DOCTOR
+  WAITING
+  DIAGNOSTIC
+  OTHER
+}
+
+model Room {
+  id         String   @id @default(uuid())
+  name       String   // "Room 1", "Room 5 - Retina"
+  type       RoomType
+  isActive   Boolean  @default(true) @map("is_active")
+  sequence   Int      @default(0) // default ordering
+  operatorId String?  @map("operator_id")
+
+  operator   User?    @relation(fields: [operatorId], references: [id])
+  routings   RoomRouting[]
+  roomEntries RoomEntry[]
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("rooms")
+}
+
+// ─── Appointments ────────────────────────────────────────────
+
+enum VisitType {
+  NEW
+  FOLLOW_UP
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  ARRIVED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model Appointment {
+  id                String            @id @default(uuid())
+  patientId         String            @map("patient_id")
+  doctorId          String            @map("doctor_id")
+  vapiCallId        String?           @unique @map("vapi_call_id")
+  scheduledAt       DateTime          @map("scheduled_at")
+  visitType         VisitType         @map("visit_type")
+  dilutionRequired  Boolean           @default(false) @map("dilution_required")
+  status            AppointmentStatus @default(PENDING)
+  confirmationSent  Boolean           @default(false) @map("confirmation_sent")
+  notes             String?
+
+  patient Patient @relation(fields: [patientId], references: [id])
+  doctor  Doctor  @relation(fields: [doctorId], references: [id])
+  visit   Visit?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("appointments")
+}
+
+// ─── Visits (Clinical Examination per visit) ─────────────────
+
+model Visit {
+  id              String   @id @default(uuid())
+  patientId       String   @map("patient_id")
+  appointmentId   String?  @unique @map("appointment_id")
+  doctorId        String   @map("doctor_id")
+  visitDate       DateTime @default(now()) @map("visit_date")
+
+  // Visual Acuity
+  vaRight         String?  @map("va_right")
+  vaLeft          String?  @map("va_left")
+
+  // Slit Lamp Exam
+  sleRight        String?  @map("sle_right")
+  sleLeft         String?  @map("sle_left")
+
+  // Tonometry
+  taRight         String?  @map("ta_right")
+  taLeft          String?  @map("ta_left")
+
+  // Lens
+  lensRight       String?  @map("lens_right")
+  lensLeft        String?  @map("lens_left")
+
+  // Fundus
+  fundusRight     String?  @map("fundus_right")
+  fundusLeft      String?  @map("fundus_left")
+
+  // Gonioscopy
+  gonioRight      String?  @map("gonio_right")
+  gonioLeft       String?  @map("gonio_left")
+
+  // Pachymetry
+  pachymetryRight String?  @map("pachymetry_right")
+  pachymetryLeft  String?  @map("pachymetry_left")
+
+  // Prescriptions
+  systemicRx      String?  @map("systemic_rx")
+  ocularRx        String?  @map("ocular_rx")
+
+  // Assessment & Plan
+  assessmentPlan     String?  @map("assessment_plan")
+  treatmentPlan      String?  @map("treatment_plan")
+  surgeryRecommended Boolean  @default(false) @map("surgery_recommended")
+  surgeryDetails     String?  @map("surgery_details")
+
+  patient     Patient      @relation(fields: [patientId], references: [id])
+  appointment Appointment? @relation(fields: [appointmentId], references: [id])
+  doctor      Doctor       @relation(fields: [doctorId], references: [id])
+  tests       OrderedTest[]
+  attachments Attachment[]
+  invoices    Invoice[]
+  routings    RoomRouting[]
+  roomEntries RoomEntry[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("visits")
+}
+
+// ─── Ordered Tests ───────────────────────────────────────────
+
+enum TestType {
+  VF
+  OCT
+  FFA
+  ORA
+  PENTACAM
+  ANT_SEG_OCT
+  PHOTOS
+  AF
+  MONTAGE
+  BIOMETRY
+  B_SCAN
+}
+
+model OrderedTest {
+  id       String   @id @default(uuid())
+  visitId  String   @map("visit_id")
+  testType TestType @map("test_type")
+  ordered  Boolean  @default(true)
+  resultUrl String? @map("result_url")
+
+  visit Visit @relation(fields: [visitId], references: [id], onDelete: Cascade)
+
+  @@unique([visitId, testType])
+  @@map("ordered_tests")
+}
+
+// ─── Attachments ─────────────────────────────────────────────
+
+model Attachment {
+  id        String   @id @default(uuid())
+  visitId   String   @map("visit_id")
+  filename  String
+  url       String
+  mimeType  String   @map("mime_type")
+
+  visit Visit @relation(fields: [visitId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("attachments")
+}
+
+// ─── Room Routing ────────────────────────────────────────────
+
+enum RoomRoutingStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+}
+
+model RoomRouting {
+  id          String            @id @default(uuid())
+  visitId     String            @map("visit_id")
+  roomId      String            @map("room_id")
+  sequence    Int
+  status      RoomRoutingStatus @default(PENDING)
+  messageSentAt DateTime?       @map("message_sent_at")
+  completedAt   DateTime?       @map("completed_at")
+
+  visit Visit @relation(fields: [visitId], references: [id])
+  room  Room  @relation(fields: [roomId], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([visitId, sequence])
+  @@map("room_routings")
+}
+
+// ─── Room Entries (Operator form submissions) ────────────────
+
+model RoomEntry {
+  id          String   @id @default(uuid())
+  visitId     String   @map("visit_id")
+  roomId      String   @map("room_id")
+  operatorId  String   @map("operator_id")
+  roomType    String   @map("room_type") // DILUTION, SLE, TONOMETRY, RETINA, OCT_FFA
+  formData    Json     // room-specific form data
+  enteredAt   DateTime @default(now()) @map("entered_at")
+  completedAt DateTime? @map("completed_at")
+
+  visit    Visit @relation(fields: [visitId], references: [id])
+  room     Room  @relation(fields: [roomId], references: [id])
+  operator User  @relation(fields: [operatorId], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("room_entries")
+}
+
+// ─── Billing ─────────────────────────────────────────────────
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PAID
+}
+
+model Invoice {
+  id             String        @id @default(uuid())
+  invoiceNumber  String        @unique @map("invoice_number")
+  patientId      String        @map("patient_id")
+  visitId        String?       @map("visit_id")
+  totalAmount    Decimal       @db.Decimal(12, 2) @map("total_amount")
+  discount       Decimal       @default(0) @db.Decimal(10, 2)
+  payableAmount  Decimal       @db.Decimal(12, 2) @map("payable_amount")
+  status         InvoiceStatus @default(DRAFT)
+  pdfUrl         String?       @map("pdf_url")
+
+  patient Patient @relation(fields: [patientId], references: [id])
+  visit   Visit?  @relation(fields: [visitId], references: [id])
+  items   InvoiceItem[]
+  payments Payment[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id          String  @id @default(uuid())
+  invoiceId   String  @map("invoice_id")
+  description String
+  amount      Decimal @db.Decimal(12, 2)
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@map("invoice_items")
+}
+
+model Payment {
+  id          String   @id @default(uuid())
+  invoiceId   String   @map("invoice_id")
+  amount      Decimal  @db.Decimal(12, 2)
+  method      String   // "CASH", "CARD", "TRANSFER"
+  reference   String?
+  collectedBy String?  @map("collected_by")
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("payments")
+}
+
+// ─── Call Transcripts (from VAPI) ────────────────────────────
+
+model CallTranscript {
+  id           String   @id @default(uuid())
+  vapiCallId   String   @unique @map("vapi_call_id")
+  patientPhone String   @map("patient_phone")
+  patientName  String?  @map("patient_name")
+  transcript   String
+  messages     Json     // Full conversation messages array
+  recordingUrl String?  @map("recording_url")
+  status       String   // "completed", "in-progress", "failed"
+  startedAt    DateTime? @map("started_at")
+  endedAt      DateTime? @map("ended_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("call_transcripts")
+}
