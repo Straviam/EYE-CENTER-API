@@ -2,6 +2,5 @@
   "buildCommand": "npx prisma generate && npx tsc",
   "outputDirectory": "dist",
   "installCommand": "pnpm install",
-  "framework": null,
-  "type": "node"
+  "framework": null
 }
