@@ -30,12 +30,6 @@ const corsOptions: cors.CorsOptions = {
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 
-app.use(
-  helmet({
-    crossOriginResourcePolicy: { policy: "cross-origin" },
-  }),
-);
-
 app.use(morgan("dev"));
 app.use(express.json());
 app.use(cookieParser());
