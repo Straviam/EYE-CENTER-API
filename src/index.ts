@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-import helmet from "helmet";
+import helmet from "./lib/helmet.js";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
 import routes from "./routes/index.js";
