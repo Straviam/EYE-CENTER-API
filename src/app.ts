@@ -6,7 +6,7 @@ import cookieParser from "cookie-parser";
 import routes from "./routes/index.js";
 
 const corsOptions = {
-  origin: true,
+  origin: process.env.CORS_ORIGIN || "http://localhost:3000",
   credentials: true,
 };
 
