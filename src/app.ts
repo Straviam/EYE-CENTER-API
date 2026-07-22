@@ -1,6 +1,5 @@
 import express from "express";
 import cors from "cors";
-import * as helmet from "helmet";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
 import routes from "./routes/index.js";
@@ -30,7 +29,6 @@ const corsOptions: cors.CorsOptions = {
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 
-app.use(helmet.default());
 app.use(morgan("dev"));
 app.use(express.json());
 app.use(cookieParser());
